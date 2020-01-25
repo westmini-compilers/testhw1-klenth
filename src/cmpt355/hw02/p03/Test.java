@@ -10,6 +10,7 @@ import org.antlr.v4.runtime.Recognizer;
 import org.antlr.v4.runtime.Token;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
@@ -19,6 +20,7 @@ public class Test {
 
     // If you change the name of the lexer, update it here so that this code can find it.
     public static final String RECOGNIZER_CLASS = "cmpt355.hw02.p03.HW02P03";
+
 
     private static StringBuilder buffer = new StringBuilder(100);
     private static Map<Integer, String> tokenNames = new HashMap<>();
@@ -75,11 +77,29 @@ public class Test {
     private static <R extends Recognizer<?, ?>> R newRecognizer(Class<R> recognizerClass, Object... arguments)
                 throws NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException {
         var argTypes = new Class<?>[arguments.length];
-        for (int i = 0; i < arguments.length; ++i)
-            argTypes[i] = (arguments[i] == null) ? Object.class : arguments[i].getClass();
-
-        var constructor = recognizerClass.getDeclaredConstructor(argTypes);
+        var constructor = findConstructorFor(recognizerClass, argTypes);
         return (R)constructor.newInstance(arguments);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> Constructor<T> findConstructorFor(Class<T> clazz, Object[] arguments) throws NoSuchMethodException {
+        for (var constructor : clazz.getDeclaredConstructors()) {
+            if (typesMatch(constructor.getParameterTypes(), arguments))
+                return (Constructor<T>)constructor;
+        }
+        throw new NoSuchMethodException();
+    }
+
+    private static boolean typesMatch(Class<?>[] types, Object[] values) {
+        if (types.length != values.length)
+            return false;
+        for (int i = 0; i < types.length; ++i) {
+            if (values[i] == null && types[i].isPrimitive())
+                return false;
+            else if (values[i] != null && !types[i].isAssignableFrom(values[i].getClass()))
+                return false;
+        }
+        return true;
     }
 
     private static void printToken(Token token) {
